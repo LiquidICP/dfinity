@@ -1,0 +1,35 @@
+{
+  "canisters": {
+    "dfinity_bridge_sc": {
+      "main": "src/dfinity_bridge_sc/main.mo",
+      "type": "motoko"
+    },
+    "dfinity_bridge_sc_assets": {
+      "dependencies": [
+        "dfinity_bridge_sc"
+      ],
+      "frontend": {
+        "entrypoint": "src/dfinity_bridge_sc_assets/src/index.html"
+      },
+      "source": [
+        "src/dfinity_bridge_sc_assets/assets",
+        "dist/dfinity_bridge_sc_assets/"
+      ],
+      "type": "assets"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "dfx": "0.8.3",
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    }
+  },
+  "version": 1
+}
