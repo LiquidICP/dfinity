@@ -1,8 +1,14 @@
 {
   "canisters": {
     "dfinity_bridge_sc": {
+      "dependencies": ["ledger"],
       "main": "src/dfinity_bridge_sc/main.mo",
       "type": "motoko"
+    },
+    "ledger": {
+      "type": "custom",
+      "candid": "ledger.public.did",
+      "wasm": "ledger.wasm"
     },
     "dfinity_bridge_sc_assets": {
       "dependencies": [
@@ -24,7 +30,7 @@
       "packtool": ""
     }
   },
-  "dfx": "0.8.3",
+  "dfx": "0.8.4",
   "networks": {
     "local": {
       "bind": "127.0.0.1:8000",
