@@ -6,19 +6,18 @@ import Text "mo:base/Text";
 import Option "mo:base/Option";
 import Error "mo:base/Error";
 import Result "mo:base/Result";
-
-//import Ledger "canister:ledger";
+import Debug "mo:base/Debug";
 
 import Token "canister:token";
 
  actor Bridge {
     
-    private stable var fee : Nat = 0; //комиссия
+    private stable var fee : Nat = 0; 
     private stable var isInit = false;
-    private stable var owner : Principal = Principal.fromText("aaaaa-aa"); // owner
+    private stable var owner : Principal = Principal.fromText("aaaaa-aa"); 
 
     type TxReceipt = Result.Result<Nat, {
-        #TransactionOk;
+        #TransactionSuccessful;
         #InsufficientBalance;
         #InsufficientAllowance;
         #Unauthorized;
@@ -52,14 +51,14 @@ import Token "canister:token";
         await Token.balanceOf(Principal.fromActor(Bridge));
     };
 
-    public shared(msg) evacuateTokens(
+    public shared(msg) func evacuateTokens(
         _canisterTokenPrincipal : Principal,
         _principalTo : Principal, 
         _amount : Nat
-        ) async () {
+        ) : async TxReceipt {
             assert(msg.caller == owner);
             await Token.transferFrom(Principal.fromActor(Bridge), _principalTo, _amount);
-        };
+    };
 
     public shared(msg) func setOwner(_owner : Principal) : async Bool{
         assert (msg.caller == owner);
