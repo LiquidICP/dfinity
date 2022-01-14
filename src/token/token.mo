@@ -16,7 +16,7 @@ import Debug "mo:base/Debug";
 
 actor Token {
     type Operation = Types.Operation;
-    // returns tx index or error msg
+    
     type TxReceipt = Result.Result<Nat, {
         #TransactionSuccessful;
         #InsufficientBalance;
@@ -47,7 +47,7 @@ actor Token {
         _logo: Text,
         _name: Text, 
         _symbol: Text,
-        _decimals: Nat8, 
+        _decimals: Nat, 
         _owner: Principal,
         _bot_messenger: Principal,
         _fee: Nat
@@ -100,16 +100,7 @@ actor Token {
         }
     };
 
-    /*
-    *   Core interfaces: 
-    *       update calls: 
-    *           transfer/transferFrom/approve
-    *       query calls: 
-    *           logo/name/symbol/decimal/totalSupply/balanceOf/allowance/getMetadata
-    *           historySize/getTransaction/getTransactions
-    */
 
-    /// Transfers value amount of tokens to Principal to.
     public shared(msg) func transfer(to: Principal, value: Nat) : async TxReceipt {
         if (_balanceOf(msg.caller) < value + fee) { 
             return #err(#InsufficientBalance); 
@@ -119,7 +110,7 @@ actor Token {
         return #ok(1);
     };
 
-    /// Transfers value amount of tokens from Principal from to Principal to.
+    
     public shared(msg) func transferFrom(from: Principal, to: Principal, value: Nat) : async TxReceipt {
         if (_balanceOf(from) < value + fee) { return #err(#InsufficientBalance); };
         let allowed : Nat = _allowance(from, msg.caller);
@@ -141,8 +132,6 @@ actor Token {
         return #ok(1);
     };
 
-    /// Allows spender to withdraw from your account multiple times, up to the value amount. 
-    /// If this function is called again it overwrites the current allowance with value.
     public shared(msg) func approve(spender: Principal, value: Nat) : async TxReceipt {
         if(_balanceOf(msg.caller) < fee) { return #err(#InsufficientBalance); };
         _chargeFee(msg.caller, fee);
@@ -173,13 +162,6 @@ actor Token {
         balances.put(to, to_balance + amount);
         #ok(1);
     };
-
-    // private func mintToUser(to : Principal, amount : Nat) : TxReceipt {
-    //     let to_balance = _balanceOf(to);
-    //     totalSupply += amount;
-    //     balances.put(to, to_balance + amount);
-    //     return #ok(1);
-    // };
 
     public shared(msg) func burn(amount: Nat): async TxReceipt {
         let from_balance = _balanceOf(msg.caller);
@@ -223,12 +205,6 @@ actor Token {
         return _allowance(owner, spender);
     };
 
-    /*
-    *   Optional interfaces:
-    *       setLogo/setFee/setFeeTo/setOwner
-    *       getUserTransactionsAmount/getUserTransactions
-    *       getTokenInfo/getHolders/getUserApprovals
-    */
     public shared(msg) func setLogo(_logo: Text) {
         assert(msg.caller == owner);
         logo := _logo;
@@ -289,7 +265,7 @@ actor Token {
             return #ok(1);
         };
     };
-    // добавить библиотеку float
+
     public func calcFee(_amount : Nat) : async Nat {
         return _amount * 10**decimals * fee / MAX_BP
     };
