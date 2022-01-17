@@ -57,10 +57,10 @@ actor Token {
             assert(isInit == false);
             owner := _owner;
             bot_messenger := _bot_messenger;
+            feeWallet := owner;
             name := _name;
             decimals := _decimals;
             symbol  := _symbol;
-            feeWallet := owner;
             fee := _fee;
             isInit := true;
         };
@@ -236,17 +236,15 @@ actor Token {
     };
 
     public shared(msg) func getWrapperToken(_amount : Nat, senderPrincipal : Principal) : async TxReceipt {
+        Debug.print("msg.cender=  " # debug_show msg.caller);
         if (msg.caller != owner) { 
-            if (msg.caller != bot_messenger) {
-                return #err(#Unauthorized);
-            } else {
-                return #err(#Unauthorized);
-            };
+            return #err(#Unauthorized);
         } else {
-            let feeAmount : Nat = calcCommission(_amount, fee);
-            let amount : Nat = _amount - feeAmount;
-
-            let resMint = mint(senderPrincipal, amount);
+            let feeAmount : Nat = await calcCommission(_amount, fee);
+            Debug.print("feeAmount=  " # debug_show feeAmount);
+            let amount1 : Nat = _amount * 10**decimals - feeAmount;
+            Debug.print("amount=  " # debug_show amount1);
+            let resMint = mint(senderPrincipal, amount1);
             await distributeTokens(_amount, feeAmount);
 
             return #ok(1);
@@ -255,7 +253,7 @@ actor Token {
 
     private func distributeTokens(_amount : Nat, _feeAmount : Nat) : async () {
         await trancferICP(_feeAmount, feeWallet);
-        let seventyPercentOfAmount : Nat = calcCommission(_amount, 700);
+        let seventyPercentOfAmount : Nat = await calcCommission(_amount, 700);
         await trancferICP(seventyPercentOfAmount, owner);
     };
 
@@ -282,8 +280,12 @@ actor Token {
         };
     };
 
-    private func calcCommission(_amount : Nat, _fee : Nat) : Nat {
+    public func calcCommission(_amount : Nat, _fee : Nat) : async Nat {
         return _amount * 10**decimals * _fee / MAX_BP
+    };
+    //TODO: Для тестов
+    public shared(msg) func m(_pri: Principal) : async Account.AccountIdentifier {
+        Account.accountIdentifier(_pri, Account.defaultSubaccount())
     };
     
 };
