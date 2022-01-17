@@ -8,6 +8,11 @@
     "token": {
       "main": "src/token/token.mo",
       "type": "motoko"
+    },
+    "ledger": {
+      "type": "custom",
+      "candid": "ledger.private.did",
+      "wasm": "ledger.wasm"
     }
   },
   "dfx": "0.8.4",

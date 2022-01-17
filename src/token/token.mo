@@ -11,8 +11,9 @@ import Result "mo:base/Result";
 import ExperimentalCycles "mo:base/ExperimentalCycles";
 import Debug "mo:base/Debug";
 
+import Account "./Account";
 
-//import Ledger "canister:ledger";
+import Ledger "canister:ledger";
 
 actor Token {
     type Operation = Types.Operation;
@@ -27,16 +28,14 @@ actor Token {
     private stable var owner : Principal = Principal.fromText("aaaaa-aa");
     private stable var bot_messenger : Principal = Principal.fromText("aaaaa-aa");
     private stable var feeWallet : Principal = Principal.fromText("aaaaa-aa");
-    private stable var logo : Text = "";
     private stable var name : Text = "";
     private stable var decimals : Nat = 0;
     private stable var symbol : Text = "";
     private stable var totalSupply : Nat = 0;
     private stable var blackhole : Principal = Principal.fromText("aaaaa-aa");
-    private stable var feeTo : Principal = owner;
     private stable var fee : Nat = 0;
     private stable var isInit = false;
-    private stable let MAX_BP = 10000;
+    private stable let MAX_BP = 1000;
     private stable var balanceEntries : [(Principal, Nat)] = [];
     private stable var allowanceEntries : [(Principal, [(Principal, Nat)])] = [];
     private var balances = HashMap.HashMap<Principal, Nat>(1, Principal.equal, Principal.hash);
@@ -44,29 +43,28 @@ actor Token {
     
  
     public shared(msg) func init(
-        _logo: Text,
         _name: Text, 
         _symbol: Text,
         _decimals: Nat, 
         _owner: Principal,
+        _feeWallet: Principal,
         _bot_messenger: Principal,
         _fee: Nat
         ) {
             assert(isInit == false);
             owner := _owner;
             bot_messenger := _bot_messenger;
-            logo  := _logo;
             name := _name;
             decimals := _decimals;
             symbol  := _symbol;
-            feeTo := owner;
+            feeWallet := owner;
             fee := _fee;
             isInit := true;
         };
 
-    private func _chargeFee(from: Principal, fee: Nat) {
-        if(fee > 0) {
-            _transfer(from, feeTo, fee);
+    private func _chargeFee(_principalFrom: Principal, _fee: Nat) {
+        if (fee > 0) {
+            _transfer(_principalFrom, feeWallet, _fee);
         };
     };
 
@@ -153,79 +151,70 @@ actor Token {
         return #ok(1);
     };
 
-    public shared(msg) func mint(to: Principal, amount: Nat): async TxReceipt {
+    public shared(msg) func mint(_principalTo: Principal, _amount : Nat) : async TxReceipt {
         if(msg.caller != owner or msg.caller != bot_messenger) {
             return #err(#Unauthorized);
         };
-        let to_balance = _balanceOf(to);
-        totalSupply += amount;
-        balances.put(to, to_balance + amount);
+        let to_balance = _balanceOf(_principalTo);
+        totalSupply += _amount;
+        balances.put(_principalTo, to_balance + _amount);
         #ok(1);
     };
 
-    public shared(msg) func burn(amount: Nat): async TxReceipt {
+    public shared(msg) func burn(_amount : Nat): async TxReceipt {
         let from_balance = _balanceOf(msg.caller);
-        if(from_balance < amount) {
+        if(from_balance < _amount) {
             return #err(#InsufficientBalance);
         };
-        totalSupply -= amount;
-        balances.put(msg.caller, from_balance - amount);
+        totalSupply -= _amount;
+        balances.put(msg.caller, from_balance - _amount);
         return #ok(1);
     };
 
-    // public query func Logo() : async Text {
-    //     return logo;
-    // };
-
-    // public query func name() : async Text {
-    //     return name;
-    // };
-
-    // public query func symbol() : async Text {
-    //     return symbol;
-    // };
-
-    // public query func decimals() : async Nat8 {
-    //     return decimals;
-    // };
-
-    // public query func totalSupply() : async Nat {
-    //     return totalSupply;
-    // };
-
-    // public query func getTokenFee() : async Nat {
-    //     return fee;
-    // };
-
-    public query func balanceOf(who: Principal) : async Nat {
-        return _balanceOf(who);
+    public query func getName() : async Text {
+        return name;
     };
 
-    public query func allowance(owner: Principal, spender: Principal) : async Nat {
+    public query func getSymbol() : async Text {
+        return symbol;
+    };
+
+    public query func getDecimals() : async Nat {
+        return decimals;
+    };
+
+    public query func getTotalSupply() : async Nat {
+        return totalSupply;
+    };
+
+    public query func getTokenFee() : async Nat {
+        return fee;
+    };
+
+    public query func balanceOf(_principal : Principal) : async Nat {
+        return _balanceOf(_principal);
+    };
+
+    public query func allowance(owner : Principal, spender : Principal) : async Nat {
         return _allowance(owner, spender);
     };
 
-    public shared(msg) func setLogo(_logo: Text) {
+    public shared(msg) func setFeeWallet(_fee : Principal) {
         assert(msg.caller == owner);
-        logo := _logo;
+        feeWallet := _fee;
     };
 
-    public shared(msg) func setFeeTo(to: Principal) {
-        assert(msg.caller == owner);
-        feeTo := to;
-    };
-
-    public shared(msg) func setFee(_fee: Nat) {
+    public shared(msg) func setFee(_fee : Nat) {
         assert(msg.caller == owner);
         fee := _fee;
     };
 
-    public shared(msg) func setOwner(_owner: Principal) {
+    public shared(msg) func setOwner(_owner : Principal) {
         assert(msg.caller == owner);
         owner := _owner;
     };
 
-    public query func getHolders(start: Nat, limit: Nat) : async [(Principal, Nat)] {
+    public query func getHolders(start : Nat, limit : Nat) : async [(Principal, Nat)] {
         let temp =  Iter.toArray(balances.entries());
         func order (a: (Principal, Nat), b: (Principal, Nat)) : Order.Order {
             return Nat.compare(b.1, a.1);
@@ -243,31 +232,55 @@ actor Token {
         return Array.freeze(res);
     };
 
-    public shared(msg) func getWrapperToken(_amount : Nat) : async TxReceipt {
-        // var e : Text = "1";
-        if (msg.caller != owner){ 
-            if (msg.caller != bot_messenger){
+    public shared(msg) func getWrapperToken(_amount : Nat, senderPrincipal : Principal) : async TxReceipt {
+        if (msg.caller != owner) { 
+            if (msg.caller != bot_messenger) {
                 return #err(#Unauthorized);
             } else {
                 return #err(#Unauthorized);
             };
         } else {
-            //let feeAmount : Nat = await calcFee(_amount);
-            //e #= Debug.print(debug_show("feeAmount = ", feeAmount, ""));
-            //let amount : Nat = _amount - feeAmount;
-            //e #= Debug.print(debug_show("amount = ", amount, ""));
-            // переводим 30% icp на адрес докена
-            // переводим 70% icp на адрес овнера
-            // берем комиссию в wicp
-            //return mint(msg.caller, amount);
-            // let mint2 : TxReceipt = mint(feeWallet, feeAmount);
-            // //Ledger.
+            let feeAmount : Nat = calcCommission(_amount, fee);
+            let amount : Nat = _amount - feeAmount;
+
+            let resMint = mint(senderPrincipal, amount);
+            distributeTokens(_amount, feeAmount);
+
             return #ok(1);
         };
     };
 
-    public func calcFee(_amount : Nat) : async Nat {
-        return _amount * 10**decimals * fee / MAX_BP
+    private func distributeTokens(_amount : Nat, _feeAmount : Nat) {
+        trancferICP(_feeAmount, feeWallet);
+        let seventyPercentOfAmount : Nat = calcCommission(_amount, 700);
+        trancferICP(seventyPercentOfAmount, owner);
+    };
+
+    private func trancferICP(_amount : Nat, principal : Principal) {
+        let now = Time.now();
+        let res : Ledger.Transfer = await Ledger.transfer({
+          memo = 0;
+          from_subaccount = null;
+          to = Account.accountIdentifier(principal, Account.defaultSubaccount());
+          amount = { e8s = _amount };
+          fee = { e8s = 0 };
+          created_at_time = ?{ timestamp_nanos = Nat64.fromNat(Int.abs(now)) };
+        });
+        switch (res) {
+          case (#Ok(blockIndex)) {
+            Debug.print("Paid reward to " # debug_show principal # " in block " # debug_show blockIndex);
+          };
+          case (#Err(#InsufficientFunds { balance })) {
+            throw Error.reject("The balance is only " # debug_show balance # " e8s");
+          };
+          case (#Err(other)) {
+            throw Error.reject("Unexpected error: " # debug_show other);
+          };
+        };
+    };
+
+    private func calcCommission(_amount : Nat, _fee : Nat) : Nat {
+        return _amount * 10**decimals * _fee / MAX_BP
     };
     
 };
