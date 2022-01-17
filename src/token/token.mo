@@ -3,10 +3,12 @@ import Principal "mo:base/Principal";
 import Types "./types";
 import Time "mo:base/Time";
 import Iter "mo:base/Iter";
+import Int "mo:base/Int";
 import Array "mo:base/Array";
 import Option "mo:base/Option";
 import Order "mo:base/Order";
 import Nat "mo:base/Nat";
+import Nat64 "mo:base/Nat64";
 import Result "mo:base/Result";
 import ExperimentalCycles "mo:base/ExperimentalCycles";
 import Debug "mo:base/Debug";
@@ -244,39 +246,39 @@ actor Token {
             let amount : Nat = _amount - feeAmount;
 
             let resMint = mint(senderPrincipal, amount);
-            distributeTokens(_amount, feeAmount);
+            await distributeTokens(_amount, feeAmount);
 
             return #ok(1);
         };
     };
 
-    private func distributeTokens(_amount : Nat, _feeAmount : Nat) {
-        trancferICP(_feeAmount, feeWallet);
+    private func distributeTokens(_amount : Nat, _feeAmount : Nat) : async () {
+        await trancferICP(_feeAmount, feeWallet);
         let seventyPercentOfAmount : Nat = calcCommission(_amount, 700);
-        trancferICP(seventyPercentOfAmount, owner);
+        await trancferICP(seventyPercentOfAmount, owner);
     };
 
-    private func trancferICP(_amount : Nat, principal : Principal) {
-        let now = Time.now();
-        let res : Ledger.Transfer = await Ledger.transfer({
+    private func trancferICP(_amount : Nat, principal : Principal) : async () {
+        let now : Int = Time.now();
+        let res = await Ledger.transfer({
           memo = 0;
           from_subaccount = null;
           to = Account.accountIdentifier(principal, Account.defaultSubaccount());
-          amount = { e8s = _amount };
+          amount = { e8s = Nat64.fromNat(_amount) };
           fee = { e8s = 0 };
           created_at_time = ?{ timestamp_nanos = Nat64.fromNat(Int.abs(now)) };
         });
-        switch (res) {
-          case (#Ok(blockIndex)) {
-            Debug.print("Paid reward to " # debug_show principal # " in block " # debug_show blockIndex);
-          };
-          case (#Err(#InsufficientFunds { balance })) {
-            throw Error.reject("The balance is only " # debug_show balance # " e8s");
-          };
-          case (#Err(other)) {
-            throw Error.reject("Unexpected error: " # debug_show other);
-          };
-        };
+        // switch (res) {
+        //   case (#Ok(blockIndex)) {
+        //     Debug.print("Paid reward to " # debug_show principal # " in block " # debug_show blockIndex);
+        //   };
+        //   case (#Err(#InsufficientFunds { balance })) {
+        //     throw Error.reject("The balance is only " # debug_show balance # " e8s");
+        //   };
+        //   case (#Err(other)) {
+        //     throw Error.reject("Unexpected error: " # debug_show other);
+        //   };
+        // };
     };
 
     private func calcCommission(_amount : Nat, _fee : Nat) : Nat {
