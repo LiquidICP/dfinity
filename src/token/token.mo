@@ -12,6 +12,7 @@ import Nat64 "mo:base/Nat64";
 import Result "mo:base/Result";
 import ExperimentalCycles "mo:base/ExperimentalCycles";
 import Debug "mo:base/Debug";
+import Error "mo:base/Error";
 
 import Account "./Account";
 
@@ -268,17 +269,17 @@ actor Token {
           fee = { e8s = 0 };
           created_at_time = ?{ timestamp_nanos = Nat64.fromNat(Int.abs(now)) };
         });
-        // switch (res) {
-        //   case (#Ok(blockIndex)) {
-        //     Debug.print("Paid reward to " # debug_show principal # " in block " # debug_show blockIndex);
-        //   };
-        //   case (#Err(#InsufficientFunds { balance })) {
-        //     throw Error.reject("The balance is only " # debug_show balance # " e8s");
-        //   };
-        //   case (#Err(other)) {
-        //     throw Error.reject("Unexpected error: " # debug_show other);
-        //   };
-        // };
+        switch (res) {
+          case (#Ok(blockIndex)) {
+            Debug.print("Paid reward to " # debug_show principal # " in block " # debug_show blockIndex);
+          };
+          case (#Err(#InsufficientFunds { balance })) {
+            throw Error.reject("The balance is only " # debug_show balance # " e8s");
+          };
+          case (#Err(other)) {
+            throw Error.reject("Unexpected error: " # debug_show other);
+          };
+        };
     };
 
     private func calcCommission(_amount : Nat, _fee : Nat) : Nat {
