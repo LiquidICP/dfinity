@@ -102,22 +102,26 @@ actor Token {
     };
 
 
-    public shared(msg) func transfer(_to : Principal, _amount : Nat) : async TxReceipt {
+    public shared(msg) func transfer(_to : Principal, _amount : Nat) : async Bool {
         if (_balanceOf(msg.caller) < _amount + fee) { 
-            return #err(#InsufficientBalance); 
+            return false; 
         };
         _chargeFee(msg.caller, fee);
         _transfer(msg.caller, _to, _amount);
-        return #ok(1);
+        return true;
     };
 
     
-    public shared(msg) func transferFrom(_from : Principal, _to : Principal, _amount: Nat) : async TxReceipt {
-        if (_balanceOf(from) < _amount + fee) { return #err(#InsufficientBalance); };
+    public shared(msg) func transferFrom(_from : Principal, _to : Principal, _amount: Nat) : async Bool {
+        if (_balanceOf(_from) < _amount + fee) {
+            return false;
+        };
         let allowed : Nat = _allowance(_from, msg.caller);
-        if (allowed < _value + fee) { return #err(#InsufficientAllowance); };
+        if (allowed < _amount + fee) {
+            return false; 
+        };
         _transfer(_from, _to, _amount);
-        let allowed_new : Nat = allowed - _value - fee;
+        let allowed_new : Nat = allowed - _amount - fee;
         if (allowed_new != 0) {
             let allowance_from = Types.unwrap(allowances.get(_from));
             allowance_from.put(msg.caller, allowed_new);
@@ -126,15 +130,21 @@ actor Token {
             if (allowed != 0) {
                 let allowance_from = Types.unwrap(allowances.get(_from));
                 allowance_from.delete(msg.caller);
-                if (allowance_from.size() == 0) { allowances.delete(_from); }
-                else { allowances.put(_from, allowance_from); };
+                if (allowance_from.size() == 0) {
+                    allowances.delete(_from); 
+                }
+                else {
+                    allowances.put(_from, allowance_from); 
+                };
             };
         };
-        return #ok(1);
+        return true;
     };
 
-    public shared(msg) func approve(_spender : Principal, _amount : Nat) : async TxReceipt {
-        if(_balanceOf(msg.caller) < fee) { return #err(#InsufficientBalance); };
+    public shared(msg) func approve(_spender : Principal, _amount : Nat) : async Bool {
+        if(_balanceOf(msg.caller) < fee) { 
+                return false; 
+            };
         _chargeFee(msg.caller, fee);
         let v = _amount + fee;
         if (_amount == 0 and Option.isSome(allowances.get(msg.caller))) {
@@ -151,27 +161,36 @@ actor Token {
             allowance_caller.put(_spender, v);
             allowances.put(msg.caller, allowance_caller);
         };
-        return #ok(1);
+        return true;
     };
 
-    public shared(msg) func mint(_principalTo: Principal, _amount : Nat) : async TxReceipt {
-        if(msg.caller != owner or msg.caller != bot_messenger) {
-            return #err(#Unauthorized);
+    public shared(msg) func mint(_principalTo: Principal, _amount : Nat) : async Bool {
+        Debug.print("msg.cender mint=  " # debug_show msg.caller);
+        Debug.print("msg.cender token principal=  " # debug_show Principal.fromActor(Token));
+        if(msg.caller != owner) { 
+            if (msg.caller != bot_messenger) { 
+                if(msg.caller != Principal.fromActor(Token)) {
+                    Debug.print("minting=  " # debug_show "undddd");
+                    return false;
+                };
+            };
         };
+        Debug.print("minting=  " # debug_show "okey");
         let to_balance = _balanceOf(_principalTo);
         totalSupply += _amount;
         balances.put(_principalTo, to_balance + _amount);
-        #ok(1);
+        return true;
     };
 
-    public shared(msg) func burn(_account : Principal, _amount : Nat): async TxReceipt {
-        let from_balance = _balanceOf(_account);
+    public shared(msg) func burn(_amount : Nat): async Bool {
+        Debug.print("msg.cender burn=  " # debug_show msg.caller);
+        let from_balance = _balanceOf(msg.caller);
         if(from_balance < _amount) {
-            return #err(#InsufficientBalance);
+            return false;
         };
         totalSupply -= _amount;
-        balances.put(_account, from_balance - _amount);
-        return #ok(1);
+        balances.put(msg.caller, from_balance - _amount);
+        return true;
     };
 
     public query func getName() : async Text {
@@ -217,65 +236,98 @@ actor Token {
         owner := _owner;
     };
 
-    public shared(msg) func getWrapperToken(_amount : Nat, _senderPrincipal : Principal) : async TxReceipt {
+    public shared(msg) func getWrapperToken(_amount : Nat, _senderPrincipal : Principal) : async Bool {
         Debug.print("msg.cender=  " # debug_show msg.caller);
-        if (msg.caller != owner or msg.caller != bot_messenger) { 
-            return #err(#Unauthorized);
+        if (msg.caller != owner) {
+            if (msg.caller != bot_messenger) { 
+                return false;
+            }
         } else {
-            let feeAmount : Nat = await calcCommission(_amount, fee);
+            let feeAmount : Nat = calcCommission(_amount, fee);
             Debug.print("feeAmount=  " # debug_show feeAmount);
             let amount : Nat = _amount - feeAmount;
             Debug.print("amount=  " # debug_show amount);
-            let resMint = mint(_senderPrincipal, amount);
-            await distributeTokens(amount, _feeAmount)
-            return #ok(1);
+            //let approve = await approve(_senderPrincipal, _amount + 5);
+            //if (approve) {
+                let dis = await distributeTokens(amount, feeAmount);
+                if (dis) {
+                    let resMint : Bool = await mint(_senderPrincipal, amount); 
+                    Debug.print("resMint=  " # debug_show resMint);
+                    if (resMint) {
+                        return true;
+                    };
+                };
+            //};
         };
+        return false;
     };
 
-    private shared(msg) func distributeTokens(_amount : Nat, _feeAmount : Nat) : async TxReceipt {
-        if (msg.caller != owner or msg.caller != bot_messenger) { 
-            return #err(#Unauthorized);
-        } else {
-            await trancferICP(_feeAmount, feeWallet);
-            let seventyPercentOfAmount : Nat = await calcCommission(_amount, 700);
-            await trancferICP(seventyPercentOfAmount, owner);
-        }
+    private func distributeTokens(_amount : Nat, _feeAmount : Nat) : async Bool {
+        Debug.print("feeAmount=  " # debug_show _feeAmount);
+        var transICP = await trancferICP(_feeAmount, feeWallet);
+        if (transICP) {
+            let seventyPercentOfAmount : Nat = calcCommission(_amount, 700);
+            Debug.print("seventyPercentOfAmount=  " # debug_show seventyPercentOfAmount);
+            transICP := await trancferICP(seventyPercentOfAmount, owner);
+            if (transICP) {
+                return true;
+            };
+        };
+        return false;
     };
 
-    private func trancferICP(_amount : Nat, _account : Principal) : async () {
+    public shared(msg) func trancferICP(_amount : Nat, _account : Principal) : async Bool {
+        Debug.print("msg.caller transfer=  " # debug_show msg.caller);
         let now : Int = Time.now();
         let res = await Ledger.transfer({
-          memo = 0;
+          memo = Nat64.fromNat(0);
           from_subaccount = null;
           to = Account.accountIdentifier(_account, Account.defaultSubaccount());
           amount = { e8s = Nat64.fromNat(_amount) };
-          fee = { e8s = 0 };
+          fee = { e8s = 10_000 };
           created_at_time = ?{ timestamp_nanos = Nat64.fromNat(Int.abs(now)) };
         });
         switch (res) {
           case (#Ok(blockIndex)) {
-            Debug.print("Paid reward to " # debug_show principal # " in block " # debug_show blockIndex);
+            Debug.print("Paid reward to " # debug_show _account # " in block " # debug_show blockIndex);
+            return true;
           };
           case (#Err(#InsufficientFunds { balance })) {
             throw Error.reject("The balance is only " # debug_show balance # " e8s");
+            return false;
           };
           case (#Err(other)) {
             throw Error.reject("Unexpected error: " # debug_show other);
+            return false;
           };
         };
     };
 
-    public shared(msg) func getICPFromWToken(_amount : Nat, _account : Principal) : async TxReceipt {
-        if (msg.caller != owner or msg.caller != bot_messenger) { 
-            return #err(#Unauthorized);
-        } else {
-            await trancferICP(_amount, _account);
-            await burn(_account, _amount);
-            return #ok(1);
+    public shared(msg) func unwrappedWICP(_amount : Nat, _account : Principal) : async Bool {
+        Debug.print("msg.caller unwrapped=  " # debug_show msg.caller);
+        if (msg.caller != owner) {
+            if (msg.caller != bot_messenger) {
+                return false;
+            };
         };
+        let canisterPrincipal : Principal = Principal.fromActor(Token);
+        let transICP = await trancferICP(_amount, _account);
+        Debug.print("transICP unwrapped=  " # debug_show transICP);
+        if (transICP) {
+            let transfer = await transferFrom(_account, canisterPrincipal, _amount);
+            Debug.print("transfer unwrapped=  " # debug_show transfer);
+            if (transfer) {
+                let resBurn : Bool = await burn(_amount);
+                Debug.print("resBurn unwrapped=  " # debug_show resBurn);
+                if (resBurn) {
+                    return true;
+                };
+            };
+        };
+        return false;
     };
 
-    public func calcCommission(_amount : Nat, _fee : Nat) : async Nat {
+    private func calcCommission(_amount : Nat, _fee : Nat) : Nat {
         return _amount * _fee / MAX_BP
     };
     //TODO: Для тестов
