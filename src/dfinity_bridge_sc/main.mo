@@ -15,6 +15,7 @@ import Token "canister:token";
     private stable var fee : Nat = 0; 
     private stable var isInit = false;
     private stable var owner : Principal = Principal.fromText("aaaaa-aa"); 
+    private stable var bot_messenger : Principal = Principal.fromText("aaaaa-aa"); 
 
     type TxReceipt = Result.Result<Nat, {
         #TransactionSuccessful;
@@ -23,28 +24,32 @@ import Token "canister:token";
         #Unauthorized;
     }>;
 
-    public func init (_owner : Principal, _fee : Nat) {
+    public func init(_owner : Principal, _fee : Nat, _bot_messenger : Principal) {
         assert(isInit == false);
         owner := _owner;
+        bot_messenger := _bot_messenger;
         fee := _fee;
         isInit := true;
     };
 
 
     public shared(msg) func requestBridgingToEnd(amount : Nat) : async TxReceipt {
-        await Token.transferFrom(msg.caller, Principal.fromActor(Bridge), amount);
+        if (msg.caller != owner or msg.caller != bot_messenger) { 
+            return #err(#Unauthorized);
+        } else {
+            await Token.transferFrom(msg.caller, Principal.fromActor(Bridge), amount);
+        }
     };
    
     public shared(msg) func performBridgingToStart(
         _amount : Nat,
         _principalTo : Principal
         ) : async TxReceipt {
+        if (msg.caller != owner or msg.caller != bot_messenger) { 
+            return #err(#Unauthorized);
+        } else {
             await Token.transferFrom(Principal.fromActor(Bridge), _principalTo, _amount);
-    };
-
-
-    public shared(msg) func greet() : async Principal {
-        return msg.caller;
+        }
     };
 
     public func canisterTokenBalance() : async Nat {
@@ -56,19 +61,39 @@ import Token "canister:token";
         _principalTo : Principal, 
         _amount : Nat
         ) : async TxReceipt {
-            assert(msg.caller == owner);
+        if (msg.caller != owner) { 
+            return #err(#Unauthorized);
+        } else {
             await Token.transferFrom(Principal.fromActor(Bridge), _principalTo, _amount);
+            return #ok(1);
+        };
     };
 
-    public shared(msg) func setOwner(_owner : Principal) : async Bool{
-        assert (msg.caller == owner);
-        owner := _owner;
-        return true;
+    public shared(msg) func setOwner(_owner : Principal) : async TxReceipt{
+        if (msg.caller != owner) { 
+            return #err(#Unauthorized);
+        } else {
+            owner := _owner;
+            return #ok(1);
+        };
     };
 
-    public shared(msg) func setFee(_fee: Nat) {
-        assert (true == (msg.caller == owner));
-        fee := _fee;
+    public shared(msg) func setBotMassenger(_bot_messenger : Principal) : async TxReceipt{
+        if (msg.caller != owner) { 
+            return #err(#Unauthorized);
+        } else {
+            _bot_messenger := _bot_messenger;
+            return #ok(1);
+        };
+    };
+
+    public shared(msg) func setFee(_fee: Nat) : async TxReceipt{
+        if (msg.caller != owner) { 
+            return #err(#Unauthorized);
+        } else {
+            fee := _fee;
+            return #ok(1);
+        };
     };
 
     public query func getFee() : async Nat {
