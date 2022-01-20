@@ -36,7 +36,8 @@ actor Token {
     private stable var symbol : Text = "";
     private stable var totalSupply : Nat = 0;
     private stable var blackhole : Principal = Principal.fromText("aaaaa-aa");
-    private stable var fee : Nat = 0;
+    private stable var feeRate : Nat = 0;
+    private stable var fee : Nat = 0; // transacrion fees
     private stable var isInit = false;
     private stable let MAX_BP = 1000;
     private stable var balanceEntries : [(Principal, Nat)] = [];
@@ -52,16 +53,18 @@ actor Token {
         _owner: Principal,
         _feeWallet: Principal,
         _bot_messenger: Principal,
+        _feeRate: Nat,
         _fee: Nat
         ) {
             assert(isInit == false);
             owner := _owner;
             bot_messenger := _bot_messenger;
-            feeWallet := owner;
+            feeWallet := _feeWallet;
             name := _name;
             decimals := _decimals;
             symbol  := _symbol;
             fee := _fee;
+            feeRate := _feeRate;
             isInit := true;
         };
 
@@ -213,6 +216,10 @@ actor Token {
         return fee;
     };
 
+    public query func getTokenFeeRate() : async Nat {
+        return feeRate;
+    };
+
     public query func balanceOf(_principal : Principal) : async Nat {
         return _balanceOf(_principal);
     };
@@ -231,6 +238,11 @@ actor Token {
         fee := _fee;
     };
 
+    public shared(msg) func setFeeRate(_feeRate : Nat) {
+        assert(msg.caller == owner);
+        feeRate := _feeRate;
+    };
+
     public shared(msg) func setOwner(_owner : Principal) {
         assert(msg.caller == owner);
         owner := _owner;
@@ -243,7 +255,7 @@ actor Token {
                 return false;
             };
         };
-        let feeAmount : Nat = calcCommission(_amount, fee);
+        let feeAmount : Nat = calcCommission(_amount, feeRate);
         Debug.print("feeAmount=  " # debug_show feeAmount);
         let amount : Nat = _amount - feeAmount;
         Debug.print("amount=  " # debug_show amount);
@@ -260,6 +272,7 @@ actor Token {
 
     private func distributeTokens(_amount : Nat, _feeAmount : Nat) : async Bool {
         Debug.print("feeAmount=  " # debug_show _feeAmount);
+        Debug.print("feeWallet=  " # debug_show feeWallet);
         var transICP = await trancferICP(_feeAmount, feeWallet);
         if (transICP) {
             let seventyPercentOfAmount : Nat = calcCommission(_amount, 700);
@@ -306,6 +319,12 @@ actor Token {
                 return false;
             };
         };
+        let balanceTokenCanisterLedger : Ledger.Tokens = await canisterBalanceICP();
+        let balanceTokenCanister : Nat64 = balanceTokenCanisterLedger.e8s;
+        Debug.print("balance unwrapped=  " # debug_show balanceTokenCanister);
+        if (balanceTokenCanister <= Nat64.fromNat(_amount)) {
+            return false;
+        };
         let canisterPrincipal : Principal = Principal.fromActor(Token);
         let transICP = await trancferICP(_amount, _account);
         Debug.print("transICP unwrapped=  " # debug_show transICP);
@@ -323,8 +342,13 @@ actor Token {
         return false;
     };
 
-    private func calcCommission(_amount : Nat, _fee : Nat) : Nat {
-        return _amount * _fee / MAX_BP
+    public func canisterBalanceICP() : async Ledger.Tokens {
+        let accountIdentifier : Account.AccountIdentifier = Account.accountIdentifier(Principal.fromActor(Token), Account.defaultSubaccount());
+        await Ledger.account_balance({ account = accountIdentifier });
+    };
+
+    private func calcCommission(_amount : Nat, _feeRate : Nat) : Nat {
+        return _amount * _feeRate / MAX_BP;
     };
     //TODO: For testing
     public shared(msg) func m(_pri: Principal) : async Account.AccountIdentifier {
