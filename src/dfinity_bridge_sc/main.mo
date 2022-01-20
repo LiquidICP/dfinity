@@ -33,26 +33,31 @@ import Token "canister:token";
     };
 
 
-    public shared(msg) func requestBridgingToEnd(amount : Nat) : async TxReceipt {
-        if (msg.caller != owner or msg.caller != bot_messenger) { 
-            return #err(#Unauthorized);
-        } else {
-            await Token.transferFrom(msg.caller, Principal.fromActor(Bridge), amount);
-        }
+    public shared(msg) func requestBridgingToEnd(
+        _amount : Nat,
+        _account : Principal
+        ) : async Bool {
+        if (msg.caller != owner) {
+            if (msg.caller != bot_messenger) { 
+                return false;
+            };
+        };
+        return await Token.transferFrom(_account, Principal.fromActor(Bridge), _amount);
     };
    
     public shared(msg) func performBridgingToStart(
         _amount : Nat,
-        _principalTo : Principal
-        ) : async TxReceipt {
-        if (msg.caller != owner or msg.caller != bot_messenger) { 
-            return #err(#Unauthorized);
-        } else {
-            await Token.transferFrom(Principal.fromActor(Bridge), _principalTo, _amount);
-        }
+        _account : Principal
+        ) : async Bool {
+        if (msg.caller != owner) {
+            if (msg.caller != bot_messenger) { 
+                return false;
+            };
+        };
+        return await Token.transferFrom(Principal.fromActor(Bridge), _account, _amount);
     };
 
-    public func canisterTokenBalance() : async Nat {
+    public shared(msg) func canisterTokenBalance() : async Nat {
         await Token.balanceOf(Principal.fromActor(Bridge));
     };
 
@@ -60,39 +65,38 @@ import Token "canister:token";
         _canisterTokenPrincipal : Principal,
         _principalTo : Principal, 
         _amount : Nat
-        ) : async TxReceipt {
+        ) : async Bool {
         if (msg.caller != owner) { 
-            return #err(#Unauthorized);
+            return false;
         } else {
-            await Token.transferFrom(Principal.fromActor(Bridge), _principalTo, _amount);
-            return #ok(1);
+           return await Token.transferFrom(Principal.fromActor(Bridge), _principalTo, _amount);
         };
     };
 
-    public shared(msg) func setOwner(_owner : Principal) : async TxReceipt{
+    public shared(msg) func setOwner(_owner : Principal) : async Bool{
         if (msg.caller != owner) { 
-            return #err(#Unauthorized);
+            return false;
         } else {
             owner := _owner;
-            return #ok(1);
+            return true;
         };
     };
 
-    public shared(msg) func setBotMassenger(_bot_messenger : Principal) : async TxReceipt{
+    public shared(msg) func setBotMassenger(_bot_messenger : Principal) : async Bool { 
         if (msg.caller != owner) { 
-            return #err(#Unauthorized);
+            return false;
         } else {
-            _bot_messenger := _bot_messenger;
-            return #ok(1);
+            bot_messenger := _bot_messenger;
+            return true;
         };
     };
 
-    public shared(msg) func setFee(_fee: Nat) : async TxReceipt{
+    public shared(msg) func setFee(_fee: Nat) : async Bool {
         if (msg.caller != owner) { 
-            return #err(#Unauthorized);
+            return false;
         } else {
             fee := _fee;
-            return #ok(1);
+            return true;
         };
     };
 

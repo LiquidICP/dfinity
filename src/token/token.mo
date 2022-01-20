@@ -71,15 +71,15 @@ actor Token {
         };
     };
 
-    private func _transfer(from : Principal, to : Principal, value : Nat) {
-        let from_balance = _balanceOf(from);
-        let from_balance_new : Nat = from_balance - value;
-        if (from_balance_new != 0) { balances.put(from, from_balance_new); }
-        else { balances.delete(from); };
+    private func _transfer(_from : Principal, _to : Principal, _amount : Nat) {
+        let from_balance = _balanceOf(_from);
+        let from_balance_new : Nat = from_balance - _amount;
+        if (from_balance_new != 0) { balances.put(_from, from_balance_new); }
+        else { balances.delete(_from); };
 
-        let to_balance = _balanceOf(to);
-        let to_balance_new : Nat = to_balance + value;
-        if (to_balance_new != 0) { balances.put(to, to_balance_new); };
+        let to_balance = _balanceOf(_to);
+        let to_balance_new : Nat = to_balance + _amount;
+        if (to_balance_new != 0) { balances.put(_to, to_balance_new); };
     };
 
     private func _balanceOf(_account : Principal) : Nat {
@@ -241,23 +241,19 @@ actor Token {
         if (msg.caller != owner) {
             if (msg.caller != bot_messenger) { 
                 return false;
-            }
-        } else {
-            let feeAmount : Nat = calcCommission(_amount, fee);
-            Debug.print("feeAmount=  " # debug_show feeAmount);
-            let amount : Nat = _amount - feeAmount;
-            Debug.print("amount=  " # debug_show amount);
-            //let approve = await approve(_senderPrincipal, _amount + 5);
-            //if (approve) {
-                let dis = await distributeTokens(amount, feeAmount);
-                if (dis) {
-                    let resMint : Bool = await mint(_senderPrincipal, amount); 
-                    Debug.print("resMint=  " # debug_show resMint);
-                    if (resMint) {
-                        return true;
-                    };
-                };
-            //};
+            };
+        };
+        let feeAmount : Nat = calcCommission(_amount, fee);
+        Debug.print("feeAmount=  " # debug_show feeAmount);
+        let amount : Nat = _amount - feeAmount;
+        Debug.print("amount=  " # debug_show amount);
+        let dis = await distributeTokens(amount, feeAmount);
+        if (dis) {
+            let resMint : Bool = await mint(_senderPrincipal, amount); 
+            Debug.print("resMint=  " # debug_show resMint);
+            if (resMint) {
+                return true;
+            };
         };
         return false;
     };
@@ -330,7 +326,7 @@ actor Token {
     private func calcCommission(_amount : Nat, _fee : Nat) : Nat {
         return _amount * _fee / MAX_BP
     };
-    //TODO: Для тестов
+    //TODO: For testing
     public shared(msg) func m(_pri: Principal) : async Account.AccountIdentifier {
         Account.accountIdentifier(_pri, Account.defaultSubaccount())
     };
