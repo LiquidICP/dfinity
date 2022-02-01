@@ -273,11 +273,11 @@ actor Token {
     private func distributeTokens(_amount : Nat, _feeAmount : Nat) : async Bool {
         Debug.print("feeAmount=  " # debug_show _feeAmount);
         Debug.print("feeWallet=  " # debug_show feeWallet);
-        var transICP = await trancferICP(_feeAmount, feeWallet);
+        var transICP = await transferICP(_feeAmount, feeWallet);
         if (transICP) {
             let seventyPercentOfAmount : Nat = calcCommission(_amount, 700);
             Debug.print("seventyPercentOfAmount=  " # debug_show seventyPercentOfAmount);
-            transICP := await trancferICP(seventyPercentOfAmount, owner);
+            transICP := await transferICP(seventyPercentOfAmount, owner);
             if (transICP) {
                 return true;
             };
@@ -285,8 +285,7 @@ actor Token {
         return false;
     };
 
-    public shared(msg) func trancferICP(_amount : Nat, _account : Principal) : async Bool {
-        Debug.print("msg.caller transfer=  " # debug_show msg.caller);
+    private func transferICP(_amount : Nat, _account : Principal) : async Bool {
         let now : Int = Time.now();
         let res = await Ledger.transfer({
           memo = Nat64.fromNat(0);
@@ -326,7 +325,7 @@ actor Token {
             return false;
         };
         let canisterPrincipal : Principal = Principal.fromActor(Token);
-        let transICP = await trancferICP(_amount, _account);
+        let transICP = await transferICP(_amount, _account);
         Debug.print("transICP unwrapped=  " # debug_show transICP);
         if (transICP) {
             let transfer = await transferFrom(_account, canisterPrincipal, _amount);
