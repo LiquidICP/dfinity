@@ -54,7 +54,7 @@ import Token "canister:token";
                 return false;
             };
         };
-        return await Token.transferFrom(Principal.fromActor(Bridge), _account, _amount);
+        return await Token.transfer(_account, _amount);
     };
 
     public shared(msg) func canisterTokenBalance() : async Nat {
@@ -106,5 +106,9 @@ import Token "canister:token";
 
     public query func getOwner() : async Principal {
         return owner;
+    };
+
+    public query func getBotMassenger() : async Principal {
+        return bot_messenger;
     };
 };
