@@ -6,12 +6,13 @@
       "type": "motoko"
     },
     "token": {
+      "dependencies": ["ledger"],
       "main": "src/token/token.mo",
       "type": "motoko"
     },
     "ledger": {
       "type": "custom",
-      "candid": "ledger.private.did",
+      "candid": "ledger.public.did",
       "wasm": "ledger.wasm"
     }
   },

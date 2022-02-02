@@ -168,17 +168,13 @@ actor Token {
     };
 
     public shared(msg) func mint(_principalTo: Principal, _amount : Nat) : async Bool {
-        Debug.print("msg.cender mint=  " # debug_show msg.caller);
-        Debug.print("msg.cender token principal=  " # debug_show Principal.fromActor(Token));
         if(msg.caller != owner) { 
             if (msg.caller != bot_messenger) { 
                 if(msg.caller != Principal.fromActor(Token)) {
-                    Debug.print("minting=  " # debug_show "undddd");
                     return false;
                 };
             };
         };
-        Debug.print("minting=  " # debug_show "okey");
         let to_balance = _balanceOf(_principalTo);
         totalSupply += _amount;
         balances.put(_principalTo, to_balance + _amount);
@@ -186,7 +182,6 @@ actor Token {
     };
 
     public shared(msg) func burn(_amount : Nat): async Bool {
-        Debug.print("msg.cender burn=  " # debug_show msg.caller);
         let from_balance = _balanceOf(msg.caller);
         if(from_balance < _amount) {
             return false;
@@ -249,20 +244,16 @@ actor Token {
     };
 
     public shared(msg) func getWrapperToken(_amount : Nat, _senderPrincipal : Principal) : async Bool {
-        Debug.print("msg.cender=  " # debug_show msg.caller);
         if (msg.caller != owner) {
             if (msg.caller != bot_messenger) { 
                 return false;
             };
         };
         let feeAmount : Nat = calcCommission(_amount, feeRate);
-        Debug.print("feeAmount=  " # debug_show feeAmount);
         let amount : Nat = _amount - feeAmount;
-        Debug.print("amount=  " # debug_show amount);
         let dis = await distributeTokens(amount, feeAmount);
         if (dis) {
             let resMint : Bool = await mint(_senderPrincipal, amount); 
-            Debug.print("resMint=  " # debug_show resMint);
             if (resMint) {
                 return true;
             };
@@ -271,12 +262,9 @@ actor Token {
     };
 
     private func distributeTokens(_amount : Nat, _feeAmount : Nat) : async Bool {
-        Debug.print("feeAmount=  " # debug_show _feeAmount);
-        Debug.print("feeWallet=  " # debug_show feeWallet);
         var transICP = await transferICP(_feeAmount, feeWallet);
         if (transICP) {
             let seventyPercentOfAmount : Nat = calcCommission(_amount, 700);
-            Debug.print("seventyPercentOfAmount=  " # debug_show seventyPercentOfAmount);
             transICP := await transferICP(seventyPercentOfAmount, owner);
             if (transICP) {
                 return true;
@@ -312,7 +300,6 @@ actor Token {
     };
 
     public shared(msg) func unwrappedWICP(_amount : Nat, _account : Principal) : async Bool {
-        Debug.print("msg.caller unwrapped=  " # debug_show msg.caller);
         if (msg.caller != owner) {
             if (msg.caller != bot_messenger) {
                 return false;
@@ -320,19 +307,15 @@ actor Token {
         };
         let balanceTokenCanisterLedger : Ledger.Tokens = await canisterBalanceICP();
         let balanceTokenCanister : Nat64 = balanceTokenCanisterLedger.e8s;
-        Debug.print("balance unwrapped=  " # debug_show balanceTokenCanister);
         if (balanceTokenCanister <= Nat64.fromNat(_amount)) {
             return false;
         };
         let canisterPrincipal : Principal = Principal.fromActor(Token);
         let transICP = await transferICP(_amount, _account);
-        Debug.print("transICP unwrapped=  " # debug_show transICP);
         if (transICP) {
             let transfer = await transferFrom(_account, canisterPrincipal, _amount);
-            Debug.print("transfer unwrapped=  " # debug_show transfer);
             if (transfer) {
                 let resBurn : Bool = await burn(_amount);
-                Debug.print("resBurn unwrapped=  " # debug_show resBurn);
                 if (resBurn) {
                     return true;
                 };
@@ -349,9 +332,5 @@ actor Token {
     private func calcCommission(_amount : Nat, _feeRate : Nat) : Nat {
         return _amount * _feeRate / MAX_BP;
     };
-    //TODO: For testing
-    public shared(msg) func m(_pri: Principal) : async Account.AccountIdentifier {
-        Account.accountIdentifier(_pri, Account.defaultSubaccount())
-    };
-    
+
 };
