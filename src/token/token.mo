@@ -250,12 +250,16 @@ actor Token {
             };
         };
         let feeAmount : Nat = calcCommission(_amount, feeRate);
-        let amount : Nat = _amount - feeAmount;
-        let dis = await distributeTokens(amount, feeAmount);
-        if (dis) {
-            let resMint : Bool = await mint(_senderPrincipal, amount); 
-            if (resMint) {
-                return true;
+        if (feeAmount == 0) {
+            return false;
+        } else {
+            let amount : Nat = _amount - feeAmount;
+            let dis = await distributeTokens(amount, feeAmount);
+            if (dis) {
+                let resMint : Bool = await mint(_senderPrincipal, amount); 
+                if (resMint) {
+                    return true;
+                };
             };
         };
         return false;
