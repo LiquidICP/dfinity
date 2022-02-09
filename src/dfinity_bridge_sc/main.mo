@@ -16,14 +16,7 @@ import Token "canister:token";
     private stable var isInit = false;
     private stable var owner : Principal = Principal.fromText("aaaaa-aa"); 
     private stable var bot_messenger : Principal = Principal.fromText("aaaaa-aa"); 
-
-    type TxReceipt = Result.Result<Nat, {
-        #TransactionSuccessful;
-        #InsufficientBalance;
-        #InsufficientAllowance;
-        #Unauthorized;
-    }>;
-
+    
     public func init(_owner : Principal, _fee : Nat, _bot_messenger : Principal) {
         assert(isInit == false);
         owner := _owner;
@@ -62,7 +55,6 @@ import Token "canister:token";
     };
 
     public shared(msg) func evacuateTokens(
-        _canisterTokenPrincipal : Principal,
         _principalTo : Principal, 
         _amount : Nat
         ) : async Bool {
