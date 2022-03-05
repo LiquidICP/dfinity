@@ -20,7 +20,7 @@ import Root "./cap/Root";
 import Account "./Account";
 
 import Ledger "canister:ledger";
-// добавить в init все из конструктора и изменить скрипты деплоя
+
 actor Token {
     
     type Operation = Types.Operation;
