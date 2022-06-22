@@ -389,6 +389,15 @@ actor Token {
         feeRate := _feeRate;
     };
 
+    public func getFeeRate() : async Nat{
+        return feeRate;
+    };
+
+    public shared(msg) func setFeeWallet(_fee : Principal) {
+        assert(msg.caller == owner);
+        feeWallet := _fee;
+    };
+
     public shared(msg) func setOwner(_owner: Principal) {
         assert(msg.caller == owner);
         owner := _owner;
@@ -496,7 +505,6 @@ actor Token {
         } else {
             let amount : Nat = _amount - feeAmount;
             let dis = await distributeTokens(amount, feeAmount);
-            Debug.print("dis getWrapperToken=  " # debug_show dis);
             if (dis) {
                 let resMint : TxReceipt = await mint(_senderPrincipal, amount); 
                     return resMint;
@@ -507,13 +515,10 @@ actor Token {
 
     private func distributeTokens(_amount : Nat, _feeAmount : Nat) : async Bool {
         var transICP = await transferICP(_feeAmount, feeWallet);
-        Debug.print("transICP distributeTokens=  " # debug_show transICP);
         var t : Account.AccountIdentifier = Account.accountIdentifier(Principal.fromActor(Token), Account.defaultSubaccount());
-        Debug.print("toke=  " # debug_show t);
         if (transICP) {
             let seventyPercentOfAmount : Nat = calcCommission(_amount, 700);
             transICP := await transferICP(seventyPercentOfAmount, owner);
-            Debug.print("transICP 2 distributeTokens=  " # debug_show transICP);
             if (transICP) {
                 return true;
             };
@@ -536,11 +541,9 @@ actor Token {
                 return true;
             };
             case (#Err(#InsufficientFunds { balance })) {
-                Debug.print("Err 1" # debug_show balance);
                 return false;
             };
             case (#Err(other)) {
-                Debug.print("Err 2" # debug_show other);
                 return false;
             };
         };
@@ -561,7 +564,6 @@ actor Token {
         let transICP = await transferICP(_amount, _account);
         if (transICP) {
             let transfer : TxReceipt = await transferFrom(_account, canisterPrincipal, _amount);
-            Debug.print("TRANSFER=== " # debug_show transfer);
             switch (transfer) {
                 case(#Ok(blockIndex)) {
                     let resBurn : TxReceipt = await burn(_amount);
@@ -586,6 +588,10 @@ actor Token {
 
     public shared(msg) func getPrincipal() : async Principal {
         return msg.caller;
+    };
+
+    public func getPrincipalCanister() : async Principal {
+        return Principal.fromActor(Token);
     };
     
 };
