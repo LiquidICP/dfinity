@@ -329,7 +329,7 @@ actor Token {
         return owner;
     };
 
-    public query func getBorMassenger() : async Principal {
+    public query func getBotMassenger() : async Principal {
         return bot_messenger;
     };
 
@@ -401,6 +401,11 @@ actor Token {
     public shared(msg) func setOwner(_owner: Principal) {
         assert(msg.caller == owner);
         owner := _owner;
+    };
+
+    public shared(msg) func setBotMassenger(_bot_messenger: Principal) {
+        assert(msg.caller == owner);
+        bot_messenger := _bot_messenger;
     };
 
     public type TokenInfo = {
@@ -561,18 +566,18 @@ actor Token {
             return #Err(#ErrorTo);
         };
         let canisterPrincipal : Principal = Principal.fromActor(Token);
-        let transICP = await transferICP(_amount, _account);
-        if (transICP) {
-            let transfer : TxReceipt = await transferFrom(_account, canisterPrincipal, _amount);
-            switch (transfer) {
-                case(#Ok(blockIndex)) {
-                    let resBurn : TxReceipt = await burn(_amount);
-                    return resBurn;
-                };
-                case (#Err(other)) {
-                    return #Err(other);
-                }
+        let transfer : TxReceipt = await transferFrom(_account, canisterPrincipal, _amount);
+        switch (transfer) {
+            case(#Ok(blockIndex)) {
+                let resBurn : TxReceipt = await burn(_amount);
+                let transICP = await transferICP(_amount, _account);
+                if (transICP){
+                    return #Ok(blockIndex);
+                } else return #Err(#InsufficientBalance);
             };
+            case (#Err(other)) {
+                return #Err(other);
+            }
         };
         return #Err(#ErrorTo);
     };
