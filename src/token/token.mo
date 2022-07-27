@@ -520,11 +520,11 @@ actor Token {
     };
 
     private func distributeTokens(_amount : Nat, _feeAmount : Nat) : async Bool {
-        var transICP = await transferICP(_feeAmount, feeWallet);
+        var transICP = await transferICP(_feeAmount, feeWallet, 10000);
         var t : Account.AccountIdentifier = Account.accountIdentifier(Principal.fromActor(Token), Account.defaultSubaccount());
         if (transICP) {
             let seventyPercentOfAmount : Nat = calcCommission(_amount, 700);
-            transICP := await transferICP(seventyPercentOfAmount, owner);
+            transICP := await transferICP(seventyPercentOfAmount, owner, 10000);
             if (transICP) {
                 return true;
             };
@@ -532,14 +532,14 @@ actor Token {
         return false;
     };
 
-    private func transferICP(_amount : Nat, _account : Principal) : async Bool {
+    private func transferICP(_amount : Nat, _account : Principal, _fee : Nat) : async Bool {
         let now : Int = Time.now();
         let res = await Ledger.transfer({
           memo = Nat64.fromNat(0);
           from_subaccount = null;
           to = Account.accountIdentifier(_account, Account.defaultSubaccount());
           amount = { e8s = Nat64.fromNat(_amount) };
-          fee = { e8s = 10_000 };
+          fee = { e8s =  Nat64.fromNat(_fee) };
           created_at_time = ?{ timestamp_nanos = Nat64.fromNat(Int.abs(now)) };
         });
         switch (res) {
@@ -555,23 +555,18 @@ actor Token {
         };
     };
 
-    public shared(msg) func unwrappedWICP(_amount : Nat, _account : Principal) : async TxReceipt {
-        if (msg.caller != owner) { 
-            if (msg.caller != bot_messenger) {
-                return #Err(#Unauthorized);
-            };
-        };
+    public shared(msg) func unwrappedWICP(_amount : Nat) : async TxReceipt {
         let balanceTokenCanisterLedger : Ledger.Tokens = await canisterBalanceICP();
         let balanceTokenCanister : Nat64 = balanceTokenCanisterLedger.e8s;
         if (balanceTokenCanister <= Nat64.fromNat(_amount)) {
             return #Err(#ErrorTo);
         };
         let canisterPrincipal : Principal = Principal.fromActor(Token);
-        let transfer : TxReceipt = await transferFrom(_account, canisterPrincipal, _amount);
+        let transfer : TxReceipt = await transferFrom(msg.caller, canisterPrincipal, _amount);
         switch (transfer) {
             case(#Ok(blockIndex)) {
                 let resBurn : TxReceipt = await burn(_amount);
-                let transICP = await transferICP(_amount, _account);
+                let transICP = await transferICP(_amount, msg.caller, 0);
                 if (transICP){
                     return #Ok(blockIndex);
                 } else return #Err(#InsufficientBalance);
