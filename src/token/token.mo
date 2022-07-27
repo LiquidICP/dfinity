@@ -16,6 +16,7 @@ import Debug "mo:base/Debug";
 import ExperimentalCycles "mo:base/ExperimentalCycles";
 import Cap "./cap/Cap";
 import Root "./cap/Root";
+import TypesCap "./cap/Types";
 
 import Account "./Account";
 
@@ -598,5 +599,4 @@ actor Token {
     public func getPrincipalCanister() : async Principal {
         return Principal.fromActor(Token);
     };
-    
 };
