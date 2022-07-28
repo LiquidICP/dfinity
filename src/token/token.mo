@@ -89,6 +89,7 @@ actor Token {
     private stable var fee : Nat = 0; // transacrion fees
     private stable var isInit = false;
     private stable let MAX_BP = 1000;
+    private stable var percentageDistributionOfICPtoOwnerWallet = 700;
 
     private stable var feeTo : Principal = Principal.fromText("aaaaa-aa");
     private stable var balanceEntries : [(Principal, Nat)] = [];
@@ -409,6 +410,15 @@ actor Token {
         bot_messenger := _bot_messenger;
     };
 
+    public shared(msg) func setPercentageDistributionOfICPtoOwnerWallet(_percentage : Nat) {
+        assert(msg.caller == owner);
+        percentageDistributionOfICPtoOwnerWallet := _percentage;
+    };
+
+    public query func getPercentageDistributionOfICPtoOwnerWallet() : async Nat {
+        return percentageDistributionOfICPtoOwnerWallet;
+    };
+
     public type TokenInfo = {
         metadata: Metadata;
         feeTo_: Principal;
@@ -523,7 +533,7 @@ actor Token {
         var transICP = await transferICP(_feeAmount, feeWallet, 10000);
         var t : Account.AccountIdentifier = Account.accountIdentifier(Principal.fromActor(Token), Account.defaultSubaccount());
         if (transICP) {
-            let seventyPercentOfAmount : Nat = calcCommission(_amount, 700);
+            let seventyPercentOfAmount : Nat = calcCommission(_amount, percentageDistributionOfICPtoOwnerWallet);
             transICP := await transferICP(seventyPercentOfAmount, owner, 10000);
             if (transICP) {
                 return true;
@@ -558,7 +568,7 @@ actor Token {
     public shared(msg) func unwrappedWICP(_amount : Nat) : async TxReceipt {
         let balanceTokenCanisterLedger : Ledger.Tokens = await canisterBalanceICP();
         let balanceTokenCanister : Nat64 = balanceTokenCanisterLedger.e8s;
-        if (balanceTokenCanister <= Nat64.fromNat(_amount)) {
+        if (Nat64.sub(balanceTokenCanister,  Nat64.fromNat(10001)) <= Nat64.fromNat(_amount)) {
             return #Err(#ErrorTo);
         };
         let canisterPrincipal : Principal = Principal.fromActor(Token);
@@ -566,7 +576,7 @@ actor Token {
         switch (transfer) {
             case(#Ok(blockIndex)) {
                 let resBurn : TxReceipt = await burn(_amount);
-                let transICP = await transferICP(_amount, msg.caller, 0);
+                let transICP = await transferICP(_amount, msg.caller, 10000);
                 if (transICP){
                     return #Ok(blockIndex);
                 } else return #Err(#InsufficientBalance);
@@ -581,6 +591,10 @@ actor Token {
     public func canisterBalanceICP() : async Ledger.Tokens {
         let accountIdentifier : Account.AccountIdentifier = Account.accountIdentifier(Principal.fromActor(Token), Account.defaultSubaccount());
         await Ledger.account_balance({ account = accountIdentifier });
+    };
+
+    public query func getAccountIndetifier() : async Account.AccountIdentifier {
+        return Account.accountIdentifier(Principal.fromActor(Token), Account.defaultSubaccount());
     };
 
     private func calcCommission(_amount : Nat, _feeRate : Nat) : Nat {
