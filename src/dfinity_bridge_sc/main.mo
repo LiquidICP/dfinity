@@ -193,6 +193,11 @@ import Token "canister:token";
     public shared(msg) func deleteRequestBridgingToEndInfosFromList(
         _ids : [Nat]
         ) : async Bool {
+        if (msg.caller != owner) { 
+            if (msg.caller != bot_messenger) { 
+                return false;
+            };
+        };
         // List.iterate<RequestBridgingToEndInfo>(requestBridgingToEndInfoList, func(obj : RequestBridgingToEndInfo) {
         //     for (_id in Iter.fromArray(_ids)) {
         //         Debug.print("1  " # debug_show _id);
