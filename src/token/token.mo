@@ -371,6 +371,11 @@ actor Token {
         name := _name;
     };
 
+    public shared(msg) func setSymbol(_symbol: Text) {
+        assert(msg.caller == owner);
+        symbol := _symbol;
+    };
+
     public shared(msg) func setLogo(_logo: Text) {
         assert(msg.caller == owner);
         logo := _logo;
@@ -417,6 +422,10 @@ actor Token {
 
     public query func getPercentageDistributionOfICPtoOwnerWallet() : async Nat {
         return percentageDistributionOfICPtoOwnerWallet;
+    };
+
+    public query func getFeeWallet() : async Principal {
+        return feeWallet;
     };
 
     public type TokenInfo = {
