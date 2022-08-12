@@ -25,13 +25,6 @@ import Token "canister:token";
 
     private stable var requestBridgingToEndInfoList = List.nil<RequestBridgingToEndInfo>();
 
-    // type RequestBridgingToEndInfo = {
-    //     caller : Principal;
-    //     address : Text;
-    //     timestamp : Int;
-    //     amount : Nat;
-    //     txHash : Text;
-    // };
     type RequestBridgingToEndInfo = {
         id : Nat;
         caller : Principal;
@@ -64,18 +57,6 @@ import Token "canister:token";
         let txReceipt : TxReceipt = await Token.transferFrom(msg.caller, Principal.fromActor(Bridge), _amount);
         switch (txReceipt){
             case (#Ok(blockIndex)) {
-                //TODO: доработать с хэшем
-                // let _timestamp : Int = Time.now();
-                // let hashSum = getHashTx(msg.caller, _address, _timestamp, _amount);
-                // let transactionInfo : RequestBridgingToEndInfo = {
-                //     caller = msg.caller;
-                //     address = _address;
-                //     timestamp = _timestamp;
-                //     amount = _amount;
-                //     txHash = hashSum;
-                // };
-                // requestBridgingToEndInfoList := List.push(transactionInfo, requestBridgingToEndInfoList);
-                // txcounter += 1;
 
                 let transactionInfo : RequestBridgingToEndInfo = {
                     id = txcounter;
@@ -96,16 +77,6 @@ import Token "canister:token";
         };
         return #Err(#ErrorTo);
     };
-   
-    // public func getHashTx(_account : Principal, _address : Text, _timestamp : Int, _amount : Nat,) : async [Nat8] {
-    //     let hash = SHA224.Digest();
-    //     hash.write([0x0A]);
-    //     hash.write(Blob.toArray(Principal.toBlob(_account)));
-    //     hash.write(Blob.toArray(Text.encodeUtf8(_address)));
-    //     hash.write(Blob.toArray(Text.encodeUtf8(Int.toText(_timestamp))));
-    //     hash.write(Blob.toArray(Text.encodeUtf8(Nat.toText(_amount))));
-    //     return hash.sum();
-    // };
 
     public shared(msg) func performBridgingToStart(
         _amount : Nat,
@@ -164,32 +135,6 @@ import Token "canister:token";
         return List.toArray(requestBridgingToEndInfoList);
     };
 
-    // public query func getRequestBridgingToEndListInterval(start : Nat) : async [RequestBridgingToEndInfo] {
-    //     return List.toArray(requestBridgingToEndList);
-    // };
-
-    // public shared(msg) func deleteRequestBridgingToEndInfosFromList(
-    //     _txHashs : [Text]
-    //     ) : async Bool {
-    //     var list = List.nil<RequestBridgingToEndInfo>();
-
-    //     List.iterate<RequestBridgingToEndInfo>(requestBridgingToEndInfoList, func(obj : RequestBridgingToEndInfo) {
-    //         for (_txHash : Text in Iter.fromArray(_txHashs)) {
-    //             if (Text.equal(obj.txHash, _txHash) == false) {
-    //                 list := List.push<RequestBridgingToEndInfo>(obj, list);
-    //             };
-    //         }; 
-    //     });
-
-    //     requestBridgingToEndInfoList := List.nil<RequestBridgingToEndInfo>();
-    //     requestBridgingToEndInfoList := list;
-            
-    //     // for (RequestBridgingToEndInfo in List.iterate(_requestBridgingToEndInfoList)) {
-    //     //     List.List.find(requestBridgingToEndInfoList, RequestBridgingToEndInfo);
-    //     // };
-    //     return true;
-    // };
-
     public shared(msg) func deleteRequestBridgingToEndInfosFromList(
         _ids : [Nat]
         ) : async Bool {
@@ -198,33 +143,10 @@ import Token "canister:token";
                 return false;
             };
         };
-        // List.iterate<RequestBridgingToEndInfo>(requestBridgingToEndInfoList, func(obj : RequestBridgingToEndInfo) {
-        //     for (_id in Iter.fromArray(_ids)) {
-        //         Debug.print("1  " # debug_show _id);
-        //         if (_id != obj.id) {
-        //             Debug.print("2  " # debug_show _id);
-        //             list := List.push<RequestBridgingToEndInfo>(obj, list);
-        //         };
-        //     }; 
-        // });
+
         for (id in _ids.vals()) {
             requestBridgingToEndInfoList := await searchingForSingleItemInList(id);
         };
-
-        // requestBridgingToEndInfoList := 
-        // List.filter<RequestBridgingToEndInfo>(requestBridgingToEndInfoList,
-        // func (obj : RequestBridgingToEndInfo) : Bool {
-        //     for (_requestBridgingToEndInfo in List.toArray(list).vals()) {
-        //         if (_requestBridgingToEndInfo == obj) {
-        //             return false;
-        //         } else return true;
-        //     };
-        //     return false;
-        // });
-            
-        // for (RequestBridgingToEndInfo in List.iterate(_requestBridgingToEndInfoList)) {
-        //     List.List.find(requestBridgingToEndInfoList, RequestBridgingToEndInfo);
-        // };
         return true;
     };
 
